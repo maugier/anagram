@@ -24,10 +24,14 @@ fn main() -> Result<(), Box<dyn Error>>{
     let words = WordMap::load(args.dictfile.as_deref(), args.minlen)?;
     let target = Letters::new(&args.target);
 
+    let mut count: usize = 0;
+
     for_anagrams(&words, &target, |ws| {
+        count += 1;
         println!("{}", ws.join(" "));
     });
 
+    eprintln!("{} anagrams found.", count);
     Ok(())
 
 }
