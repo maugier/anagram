@@ -1,9 +1,9 @@
-use std::{collections::{HashMap}, path::{PathBuf, Path}, error::Error, io::BufRead};
+use std::{collections::{HashMap}, path::{PathBuf, Path}, error::Error, io::{BufRead, stdin, BufReader}, fs::File};
 use clap::Parser;
 
 #[derive(Parser)]
 struct CLI {
-    dictfile: PathBuf,
+    dictfile: Option<PathBuf>,
     target: String,
     minlen: Option<usize>,
 }
@@ -13,25 +13,27 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     let args = CLI::parse();
 
-    let words = WordMap::load(&args.dictfile, args.minlen)?;
+    let words = WordMap::load(args.dictfile.as_deref(), args.minlen)?;
     let target = Letters::new(&args.target);
 
-    for_anagrams(&words, &target);
+    for_anagrams(&words, &target, |ws| {
+        println!("{}", ws.join(" "));
+    });
 
     Ok(())
 
 }
 
-fn for_anagrams(words: &WordMap, target: &Letters) {
+fn for_anagrams<F: FnMut(&[&str])>(words: &WordMap, target: &Letters, mut action: F) {
 
     let limit = words.maxlen();
     let mut buf = vec![];
-    go(words, target, &mut buf, limit);
+    go(words, target, &mut buf, limit, &mut action);
 
-    fn go<'a>(words: &'a WordMap, target: &Letters, buffer: &mut Vec<&'a str>, limit: usize) {
+    fn go<'a, F: FnMut(&[&str])>(words: &'a WordMap, target: &Letters, buffer: &mut Vec<&'a str>, limit: usize, action: &mut F) {
         //println!("find_anagrams {:?}", target);
         if target.len == 0 { 
-            println!("{:?}", buffer);
+            action(&buffer[..]);
             return
         }
 
@@ -40,7 +42,7 @@ fn for_anagrams(words: &WordMap, target: &Letters) {
                 for word in len_words {
                     if let Some(new_target) = target.subtract(&*word) {
                         buffer.push(&*word);
-                        go(words, &new_target, buffer, len);
+                        go(words, &new_target, buffer, len, action);
                         buffer.pop();
                     }
                 }
@@ -92,10 +94,18 @@ impl WordMap {
         *self.0.keys().max().unwrap() // safe because we assert the map not to be empty on construction
     }
 
-    fn load(path: &Path, minlen: Option<usize>) -> Result<Self, Box<dyn Error>> {
+    fn load(path: Option<&Path>, minlen: Option<usize>) -> Result<Self, Box<dyn Error>> {
         let mut words: HashMap<usize, Vec<String>> = HashMap::new();
     
-        for word in std::fs::read(path)?.lines() {
+        let source: Box<dyn Iterator<Item=_>> = match path {
+            None  => Box::new(stdin().lines()),
+            Some(dash) if dash == Path::new("-") => Box::new(stdin().lines()),
+            Some(path) => {
+                Box::new(BufReader::new(File::open(path)?).lines())
+            }
+        };
+
+        for word in source {
             let word = word?;
             let len = word.chars().count();
             if let Some(min) = minlen {
