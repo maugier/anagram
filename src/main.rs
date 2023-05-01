@@ -2,9 +2,17 @@ use std::{collections::{HashMap}, path::{PathBuf, Path}, error::Error, io::{BufR
 use clap::Parser;
 
 #[derive(Parser)]
+#[command(author, version, about, long_about=None)]
 struct CLI {
-    dictfile: Option<PathBuf>,
+    /// Word whose anagrams to look for
     target: String,
+
+    /// Dictionary file, or "-" to read from stdin (default)
+    #[arg(short, value_name = "FILE")]
+    dictfile: Option<PathBuf>,
+
+    /// Minimum word length. Equivalent to filtering the dictionary.
+    #[arg(short)]
     minlen: Option<usize>,
 }
 
