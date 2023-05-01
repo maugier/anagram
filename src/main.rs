@@ -8,11 +8,11 @@ struct CLI {
     target: String,
 
     /// Dictionary file, or "-" to read from stdin (default)
-    #[arg(short, value_name = "FILE")]
+    #[arg(short='f', value_name = "FILE")]
     dictfile: Option<PathBuf>,
 
     /// Minimum word length. Equivalent to filtering the dictionary.
-    #[arg(short)]
+    #[arg(short='l')]
     minlen: Option<usize>,
 }
 
